@@ -1,0 +1,19 @@
+package {{.pkg}};
+
+import org.seasar.doma.Domain;
+
+@Domain(valueType = {{.type}}.class, factoryMethod = "of")
+public class {{.name}} {
+  private {{.name}}(final String value) {
+    this.value = value;
+  }
+
+  private {{.type}} value;
+  public {{.type}} getValue() {
+    return value;
+  }
+
+  public static {{.name}} of(final {{.type}} value) {
+    return new {{.name}}(value);
+  }
+}
