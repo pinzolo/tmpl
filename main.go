@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -25,7 +26,8 @@ func main() {
 		out: os.Stdout,
 		err: os.Stderr,
 	}
-	code := render(w, os.Args...)
+	flag.Parse()
+	code := render(w, flag.Args()...)
 	os.Exit(code)
 }
 
