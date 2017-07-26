@@ -7,13 +7,15 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	os.Setenv("XDG_DATA_HOME", "testdata")
+	reset := setTestEnv()
+	defer reset()
 	ob := &bytes.Buffer{}
 	eb := &bytes.Buffer{}
 	w := writer{out: ob, err: eb}
 	code := render(w, "doma_domain", "pkg:foo.bar.baz", "name:Code", "type:String")
 	if code != 0 {
-		t.Fatal(eb)
+		t.Error(eb)
+		return
 	}
 	expected := `package foo.bar.baz;
 
@@ -41,23 +43,33 @@ public class Code {
 }
 
 func TestTemplateNotFound(t *testing.T) {
-	os.Setenv("XDG_DATA_HOME", "testdata")
+	reset := setTestEnv()
+	defer reset()
 	ob := &bytes.Buffer{}
 	eb := &bytes.Buffer{}
 	w := writer{out: ob, err: eb}
 	code := render(w, "unknown", "pkg:foo.bar.baz", "name:Code", "type:String")
 	if code == 0 {
-		t.Fatal("render with unknown template name should be error.")
+		t.Error("render with unknown template name should be error.")
 	}
 }
 
 func TestBrokenTemplate(t *testing.T) {
-	os.Setenv("XDG_DATA_HOME", "testdata")
+	reset := setTestEnv()
+	defer reset()
 	ob := &bytes.Buffer{}
 	eb := &bytes.Buffer{}
 	w := writer{out: ob, err: eb}
 	code := render(w, "broken", "foo:bar")
 	if code == 0 {
-		t.Fatal("render with broken template should be error.")
+		t.Error("render with broken template should be error.")
+	}
+}
+
+func setTestEnv() func() {
+	pre := os.Getenv("XDG_DATA_HOME")
+	os.Setenv("XDG_DATA_HOME", "testdata")
+	return func() {
+		os.Setenv("XDG_DATA_HOME", pre)
 	}
 }
