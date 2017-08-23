@@ -1,12 +1,17 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/pinzolo/casee"
 	"github.com/pinzolo/xdgdir"
@@ -21,11 +26,14 @@ type writer struct {
 	err io.Writer
 }
 
+var jsonOpt bool
+
 func main() {
 	w := writer{
 		out: os.Stdout,
 		err: os.Stderr,
 	}
+	flag.BoolVar(&jsonOpt, "json", false, "Read value as json")
 	flag.Parse()
 	code := render(w, flag.Args()...)
 	os.Exit(code)
@@ -36,16 +44,18 @@ func render(w writer, args ...string) int {
 		// TODO: print usage
 	}
 	name := args[0]
-	if len(args) == 1 {
-		// TODO: json from pipe
-	}
 	t, err := tmpl(name)
 	if err != nil {
 		fmt.Fprintln(w.err, err)
 		return 2
 	}
 	t = t.Funcs(funcs())
-	err = t.Execute(w.out, params(args[1:]))
+	p, err := params(args[1:])
+	if err != nil {
+		fmt.Fprintln(w.err, err)
+		return 2
+	}
+	err = t.Execute(w.out, p)
 	if err != nil {
 		fmt.Fprintln(w.err, err)
 		return 2
@@ -76,7 +86,30 @@ func funcs() template.FuncMap {
 	}
 }
 
-func params(args []string) Params {
+func params(args []string) (Params, error) {
+	if jsonOpt && !terminal.IsTerminal(0) {
+		return jsonParams()
+	}
+	return flatParams(args)
+}
+
+func jsonParams() (Params, error) {
+	var m = make(map[string]interface{})
+	b, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return Params{}, err
+	}
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return Params{}, err
+	}
+	return Params(m), nil
+}
+
+func flatParams(args []string) (Params, error) {
+	if len(args) == 0 {
+		return Params{}, errors.New("no parameter")
+	}
 	p := Params(make(map[string]interface{}))
 	for _, a := range args {
 		sa := strings.Split(a, ":")
@@ -86,5 +119,5 @@ func params(args []string) Params {
 		}
 		p[sa[0]] = ""
 	}
-	return p
+	return p, nil
 }
