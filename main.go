@@ -87,19 +87,36 @@ func funcs() template.FuncMap {
 }
 
 func params(args []string) (Params, error) {
-	if jsonOpt && !terminal.IsTerminal(0) {
-		return jsonParams()
+	if jsonOpt {
+		b, err := jsonBytes(args)
+		if err != nil {
+			return Params{}, err
+		}
+		return jsonParams(b)
 	}
 	return flatParams(args)
 }
 
-func jsonParams() (Params, error) {
-	var m = make(map[string]interface{})
-	b, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		return Params{}, err
+func jsonBytes(args []string) ([]byte, error) {
+	var err error
+	var b []byte
+	if terminal.IsTerminal(0) {
+		if len(args) == 0 {
+			return nil, errors.New("no parameter")
+		}
+		b = []byte(args[0])
+	} else {
+		b, err = ioutil.ReadAll(os.Stdin)
 	}
-	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func jsonParams(b []byte) (Params, error) {
+	var m = make(map[string]interface{})
+	err := json.Unmarshal(b, &m)
 	if err != nil {
 		return Params{}, err
 	}
